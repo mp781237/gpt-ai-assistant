@@ -1,3 +1,5 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
 import express from 'express';
 import { handleEvents, printPrompts } from '../app/index.js';
 import config from '../config/index.js';
@@ -6,19 +8,30 @@ import storage from '../storage/index.js';
 import { fetchVersion, getVersion } from '../utils/index.js';
 
 const app = express();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const staticDir = path.resolve(__dirname, '../pages');
 
 app.use(express.json({
   verify: (req, res, buf) => {
     req.rawBody = buf.toString();
   },
 }));
+app.use(express.static(staticDir));
 
 app.get('/', (req, res) => {
   if (config.APP_URL) {
     res.redirect(config.APP_URL);
     return;
   }
-  res.sendStatus(200);
+  res.sendFile(path.join(staticDir, 'dashboard.html'));
+});
+
+app.get('/dashboard', (req, res) => {
+  res.sendFile(path.join(staticDir, 'dashboard.html'));
+});
+
+app.get('/transactions', (req, res) => {
+  res.sendFile(path.join(staticDir, 'transactions.html'));
 });
 
 app.get('/info', async (req, res) => {
