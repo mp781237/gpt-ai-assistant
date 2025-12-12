@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>交易與配息紀錄</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #111827;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --accent: #22d3ee;
+      --border: #1f2937;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Noto Sans TC', sans-serif; }
+    header { padding: 18px 24px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); position: sticky; top: 0; backdrop-filter: blur(10px); background: #0f172acc; }
+    h1 { margin: 0; font-size: 24px; }
+    main { padding: 20px 24px 48px; max-width: 1200px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 16px; box-shadow: 0 10px 30px rgba(0,0,0,0.25); }
+    .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+    table { width: 100%; border-collapse: collapse; min-width: 720px; }
+    th, td { padding: 10px 8px; text-align: right; }
+    th { text-align: left; border-bottom: 1px solid var(--border); color: var(--muted); }
+    tr:not(:last-child) td { border-bottom: 1px solid var(--border); }
+    td:first-child, th:first-child { text-align: left; }
+    .positive { color: #22c55e; }
+    .negative { color: #ef4444; }
+    .pill { padding: 6px 10px; border-radius: 10px; border: 1px solid var(--border); background: #111827; color: var(--text); font-size: 13px; }
+    label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+    input, select, textarea { width: 100%; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--border); background: #0b1222; color: var(--text); }
+    .flex { display: flex; gap: 10px; flex-wrap: wrap; }
+    .btn { padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--accent); color: #0f172a; font-weight: 700; cursor: pointer; }
+    .muted { color: var(--muted); font-size: 13px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>交易紀錄與配息</h1>
+    <div class="flex">
+      <span class="pill">匯入格式：CSV/Excel</span>
+      <span class="pill">匯出：流水/持倉/報告</span>
+    </div>
+  </header>
+  <main>
+    <section class="card">
+      <div class="flex" style="justify-content: space-between; align-items: center;">
+        <h2 style="margin:0;">交易紀錄</h2>
+        <div class="flex">
+          <input type="file" id="importFile" accept=".csv,.xlsx,.xls" />
+          <button class="btn" id="importBtn">批次匯入</button>
+          <span class="muted">匯入時會檢查欄位映射：代號、日期、股數、價格、手續費、稅費、幣別</span>
+        </div>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>買入/賣出</th><th>日期</th><th>股數</th><th>成交價</th><th>手續費</th><th>稅費</th><th>備註</th></tr></thead>
+          <tbody id="txnBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2 style="margin:0 0 10px;">手動輸入交易</h2>
+      <form id="manualForm" class="grid">
+        <div>
+          <label for="side">方向</label>
+          <select id="side" required><option value="買入">買入</option><option value="賣出">賣出</option></select>
+        </div>
+        <div>
+          <label for="date">日期</label>
+          <input type="date" id="date" required />
+        </div>
+        <div>
+          <label for="shares">股數</label>
+          <input type="number" id="shares" min="1" required />
+        </div>
+        <div>
+          <label for="price">成交價</label>
+          <input type="number" id="price" step="0.01" required />
+        </div>
+        <div>
+          <label for="fee">手續費</label>
+          <input type="number" id="fee" step="0.01" value="0" />
+        </div>
+        <div>
+          <label for="tax">稅費</label>
+          <input type="number" id="tax" step="0.01" value="0" />
+        </div>
+        <div>
+          <label for="note">備註</label>
+          <textarea id="note" rows="2" placeholder="例：券商/帳戶"></textarea>
+        </div>
+        <div style="align-self:flex-end;">
+          <button type="submit" class="btn">新增紀錄</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="card">
+      <div class="flex" style="justify-content: space-between; align-items: center;">
+        <h2 style="margin:0;">配息/除息紀錄</h2>
+        <span class="pill">將現金/股票股利計入總報酬</span>
+      </div>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>代號</th><th>名稱</th><th>現金股利</th><th>股票股利</th><th>入帳日</th><th>參考稅額</th></tr></thead>
+          <tbody id="dividendBody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const txns = [
+      { side: '買入', date: '2025/01/10', shares: 1000, price: 110, fee: 50, tax: 0, note: '台新證券' },
+      { side: '賣出', date: '2025/02/02', shares: 600, price: 145, fee: 50, tax: 200, note: '獲利了結' },
+    ];
+
+    const dividends = [
+      { symbol: '2330', name: '台積電', cash: 4500, stock: 0, date: '2025/07/15', tax: 225 },
+      { symbol: '2881', name: '富邦金', cash: 2800, stock: 30, date: '2025/06/30', tax: 140 },
+    ];
+
+    function renderTxns() {
+      const tbody = document.getElementById('txnBody');
+      tbody.innerHTML = '';
+      txns.forEach((t) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${t.side}</td>
+          <td>${t.date}</td>
+          <td>${t.shares.toLocaleString()}</td>
+          <td>${t.price.toFixed(2)}</td>
+          <td>${t.fee.toFixed(2)}</td>
+          <td>${t.tax.toFixed(2)}</td>
+          <td>${t.note}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderDividends() {
+      const tbody = document.getElementById('dividendBody');
+      tbody.innerHTML = '';
+      dividends.forEach((d) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${d.symbol}</td>
+          <td>${d.name}</td>
+          <td class="positive">$${d.cash.toLocaleString()}</td>
+          <td>${d.stock}</td>
+          <td>${d.date}</td>
+          <td>${d.tax.toFixed(0)}</td>`;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function handleImport() {
+      const file = document.getElementById('importFile').files[0];
+      if (!file) {
+        alert('請先選擇 CSV/Excel 檔案');
+        return;
+      }
+      alert(`已接收檔案：${file.name}\n將進行欄位映射與檢查`);
+    }
+
+    function handleManual(e) {
+      e.preventDefault();
+      const form = e.target;
+      const entry = {
+        side: form.side.value,
+        date: form.date.value.replaceAll('-', '/'),
+        shares: Number(form.shares.value),
+        price: Number(form.price.value),
+        fee: Number(form.fee.value),
+        tax: Number(form.tax.value),
+        note: form.note.value,
+      };
+      txns.unshift(entry);
+      renderTxns();
+      form.reset();
+    }
+
+    document.getElementById('importBtn').addEventListener('click', handleImport);
+    document.getElementById('manualForm').addEventListener('submit', handleManual);
+
+    renderTxns();
+    renderDividends();
+  </script>
+</body>
+</html>

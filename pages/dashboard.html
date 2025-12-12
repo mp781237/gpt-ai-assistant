@@ -1,0 +1,500 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>投資 Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg: #f6f7fb;
+      --card: #ffffff;
+      --text: #1f2933;
+      --muted: #52616b;
+      --accent: #4f46e5;
+      --accent-2: #10b981;
+      --border: #e0e7ff;
+    }
+
+    [data-theme="dark"] {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-2: #22c55e;
+      --border: #334155;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Noto Sans TC', sans-serif;
+    }
+    header {
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      backdrop-filter: blur(12px);
+      background-color: color-mix(in srgb, var(--bg) 85%, transparent);
+      z-index: 10;
+    }
+    h1 { margin: 0; font-size: 24px; }
+    .toolbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .pill-btn {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      color: var(--text);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .pill-btn.active { border-color: var(--accent); color: var(--accent); box-shadow: 0 6px 18px rgba(79, 70, 229, 0.12); }
+    main { padding: 20px 24px 48px; max-width: 1400px; margin: 0 auto; display: flex; flex-direction: column; gap: 20px; }
+    .grid { display: grid; gap: 16px; }
+    .grid.cols-5 { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+    .grid.cols-3 { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+    }
+    .card h3 { margin: 0 0 12px; font-size: 15px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+    .metric { font-size: 26px; font-weight: 700; margin-bottom: 6px; }
+    .subtext { color: var(--muted); font-size: 13px; }
+    .tag { padding: 4px 8px; border-radius: 999px; font-size: 12px; border: 1px solid var(--border); color: var(--muted); background: color-mix(in srgb, var(--accent) 6%, transparent); }
+    .table-wrapper { overflow: auto; }
+    table { width: 100%; border-collapse: collapse; min-width: 760px; }
+    th, td { padding: 10px 8px; text-align: right; }
+    th { text-align: left; position: sticky; top: 0; background: var(--card); border-bottom: 1px solid var(--border); cursor: pointer; }
+    tr:not(:last-child) td { border-bottom: 1px solid var(--border); }
+    td:first-child, th:first-child { text-align: left; }
+    .positive { color: #16a34a; }
+    .negative { color: #ef4444; }
+    .layout-toggle { display: flex; gap: 8px; }
+    .timestamp { font-size: 12px; color: var(--muted); }
+    .section-title { display: flex; align-items: center; justify-content: space-between; margin: 4px 0 0; }
+    .flex { display: flex; gap: 12px; flex-wrap: wrap; }
+    .badge { padding: 6px 10px; border-radius: 12px; background: color-mix(in srgb, var(--accent) 10%, transparent); color: var(--text); border: 1px solid var(--border); font-size: 13px; }
+    .alert { border-left: 4px solid #f59e0b; background: color-mix(in srgb, #f59e0b 10%, transparent); padding: 10px; border-radius: 10px; }
+    .charts { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+    .filters { display: flex; gap: 10px; flex-wrap: wrap; }
+    input, select { padding: 8px 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); color: var(--text); }
+    .stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 13px; color: var(--muted); }
+    @media (max-width: 768px) {
+      header { flex-direction: column; align-items: flex-start; gap: 12px; }
+      .layout-toggle { width: 100%; }
+    }
+  </style>
+</head>
+<body data-theme="light">
+  <header>
+    <h1>Portfolio Dashboard</h1>
+    <div class="toolbar">
+      <button class="pill-btn" id="themeToggle">深色/淺色</button>
+      <div class="layout-toggle">
+        <button class="pill-btn active" data-layout="cozy">舒適版型</button>
+        <button class="pill-btn" data-layout="compact">緊湊版型</button>
+      </div>
+      <span class="timestamp" id="timestamp"></span>
+    </div>
+  </header>
+  <main>
+    <section class="card">
+      <div class="section-title">
+        <div>
+          <h2 style="margin:0 0 4px;">資產總覽</h2>
+          <div class="timestamp">資料時間戳：<span id="dataTime"></span>（依券商匯入時間）</div>
+        </div>
+        <div class="flex">
+          <span class="badge">基準：加權指數</span>
+          <span class="badge">匯率：TWD</span>
+        </div>
+      </div>
+      <div class="grid cols-5" id="kpiCards"></div>
+    </section>
+
+    <section class="card">
+      <div class="section-title">
+        <h2 style="margin:0;">持股清單</h2>
+        <div class="filters">
+          <input type="search" id="filterInput" placeholder="篩選代號/名稱" />
+          <select id="sectorFilter">
+            <option value="">全部產業</option>
+          </select>
+        </div>
+      </div>
+      <div class="table-wrapper">
+        <table id="holdingsTable">
+          <thead>
+            <tr>
+              <th data-key="symbol">股票代號</th>
+              <th data-key="name">名稱</th>
+              <th data-key="shares">股數</th>
+              <th data-key="avgCost">均價</th>
+              <th data-key="price">現價</th>
+              <th data-key="value">市值</th>
+              <th data-key="pnlPct">損益%</th>
+              <th data-key="weight">權重</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="grid cols-3">
+      <div class="card">
+        <div class="section-title"><h3>資產配置 (現金 vs 股票)</h3><span class="tag">甜甜圈圖</span></div>
+        <canvas id="cashVsStock"></canvas>
+      </div>
+      <div class="card">
+        <div class="section-title"><h3>產業/類股分布</h3><span class="tag">圓餅圖</span></div>
+        <canvas id="sectorChart"></canvas>
+      </div>
+      <div class="card">
+        <div class="section-title"><h3>單檔權重 & 偏離</h3><span class="tag">目標 vs 實際</span></div>
+        <canvas id="weightChart"></canvas>
+        <div class="stat-row" id="deviationStats"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-title"><h2 style="margin:0;">再平衡建議</h2><span class="tag">超標提醒</span></div>
+      <div id="rebalanceList" class="flex"></div>
+      <div class="alert" style="margin-top:12px;">提醒：單檔超過 10% 或產業集中度高時觸發通知（站內/Email 占位符）。</div>
+    </section>
+
+    <section class="card">
+      <div class="section-title"><h2 style="margin:0;">報酬與績效</h2>
+        <div class="filters">
+          <select id="periodSelect">
+            <option value="mtd">本月</option>
+            <option value="ytd">今年</option>
+            <option value="custom">自訂</option>
+          </select>
+          <select id="benchmarkSelect">
+            <option value="twi">加權指數</option>
+            <option value="otc">櫃買指數</option>
+            <option value="custom">自訂 ETF</option>
+          </select>
+        </div>
+      </div>
+      <div class="charts">
+        <div>
+          <h3>績效走勢</h3>
+          <canvas id="performanceChart"></canvas>
+        </div>
+        <div>
+          <h3>回撤 (Drawdown)</h3>
+          <canvas id="drawdownChart"></canvas>
+        </div>
+        <div>
+          <h3>收益貢獻度排名</h3>
+          <canvas id="contributionChart"></canvas>
+        </div>
+      </div>
+      <div class="grid cols-3" style="margin-top:16px;">
+        <div class="card">
+          <h3>總報酬</h3>
+          <div class="metric" id="totalReturn"></div>
+          <div class="subtext">時間加權 (TWR)</div>
+        </div>
+        <div class="card">
+          <h3>IRR / XIRR</h3>
+          <div class="metric" id="irr"></div>
+          <div class="subtext">金額加權報酬率</div>
+        </div>
+        <div class="card">
+          <h3>單檔最佳/最差</h3>
+          <div class="metric" id="singlePerf"></div>
+          <div class="subtext">含股息再投入</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-title"><h2 style="margin:0;">現金流與入出金</h2><span class="tag">手續費稅費拆分</span></div>
+      <div class="table-wrapper">
+        <table>
+          <thead><tr><th>帳戶</th><th>類型</th><th>日期</th><th>金額</th><th>備註</th></tr></thead>
+          <tbody id="cashFlowBody"></tbody>
+        </table>
+      </div>
+      <div class="charts" style="margin-top:14px;">
+        <div>
+          <h3>月度現金流趨勢</h3>
+          <canvas id="cashTrend"></canvas>
+        </div>
+        <div>
+          <h3>可動用餘額</h3>
+          <div class="metric" id="availableCash"></div>
+          <div class="subtext">自動計入交易成本</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const state = {
+      timestamp: new Date(),
+      holdings: [
+        { symbol: '2330', name: '台積電', sector: '半導體', shares: 1200, avgCost: 520, price: 580, weight: 0.32 },
+        { symbol: '2317', name: '鴻海', sector: '電子組裝', shares: 1800, avgCost: 105, price: 112, weight: 0.18 },
+        { symbol: '1301', name: '台塑', sector: '塑化', shares: 900, avgCost: 95, price: 87, weight: 0.09 },
+        { symbol: '2881', name: '富邦金', sector: '金融', shares: 1500, avgCost: 68, price: 72, weight: 0.11 },
+        { symbol: '0050', name: '元大50', sector: 'ETF', shares: 800, avgCost: 138, price: 145, weight: 0.16 },
+        { symbol: '2603', name: '長榮', sector: '航運', shares: 600, avgCost: 38, price: 36, weight: 0.07 },
+        { symbol: '3711', name: '日月光投控', sector: '半導體', shares: 500, avgCost: 90, price: 102, weight: 0.07 },
+      ],
+      targetWeights: {
+        '半導體': 0.28,
+        '電子組裝': 0.12,
+        '塑化': 0.08,
+        '金融': 0.12,
+        'ETF': 0.20,
+        '航運': 0.05,
+      },
+      cash: 920000,
+      returns: { total: 0.124, irr: 0.108, best: { symbol: '2330', pct: 0.26 }, worst: { symbol: '1301', pct: -0.05 } },
+      performanceSeries: [4, 8, 6, 12, 15, 10, 18, 22, 17, 24, 28, 32],
+      drawdowns: [0, -2, -1, -3, -1, -4, -2, -1, -3, -2, -1, 0],
+      contributions: [12, 10, 9, 6, 4, 3],
+      cashFlows: [
+        { account: '台新證券', type: '入金', date: '2024/12/28', amount: 200000, note: '年終獎金' },
+        { account: '台新證券', type: '出金', date: '2025/01/05', amount: -30000, note: '生活費' },
+        { account: '兆豐銀行', type: '入金', date: '2025/02/01', amount: 60000, note: '薪資' },
+        { account: '兆豐銀行', type: '入金', date: '2025/03/01', amount: 60000, note: '薪資' },
+        { account: '兆豐銀行', type: '入金', date: '2025/04/01', amount: 60000, note: '薪資' },
+      ],
+    };
+
+    const formatCurrency = (value) => value.toLocaleString('zh-TW', { style: 'currency', currency: 'TWD', maximumFractionDigits: 0 });
+    const formatPct = (value) => `${(value * 100).toFixed(1)}%`;
+
+    function renderTimestamp() {
+      const formatter = new Intl.DateTimeFormat('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+      document.getElementById('timestamp').textContent = `更新於 ${formatter.format(state.timestamp)}（系統時區）`;
+      document.getElementById('dataTime').textContent = formatter.format(state.timestamp);
+    }
+
+    function renderKPIs() {
+      const totalMarket = state.holdings.reduce((sum, h) => sum + h.shares * h.price, 0);
+      const realized = 120000;
+      const unrealized = totalMarket - state.holdings.reduce((sum, h) => sum + h.shares * h.avgCost, 0);
+      const todayChange = totalMarket * 0.0042;
+      const kpis = [
+        { label: '總資產', value: formatCurrency(totalMarket + state.cash), color: 'var(--accent)' },
+        { label: '現金部位', value: formatCurrency(state.cash), color: 'var(--accent-2)' },
+        { label: '持股市值', value: formatCurrency(totalMarket), color: '#f97316' },
+        { label: '已實現/未實現損益', value: `${formatCurrency(realized)} / ${formatCurrency(unrealized)}` },
+        { label: '今日變動', value: `${todayChange >= 0 ? '+' : ''}${formatCurrency(todayChange)}` },
+      ];
+      const container = document.getElementById('kpiCards');
+      container.innerHTML = '';
+      kpis.forEach((kpi) => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        const indicator = kpi.color ? `<span class="tag" style="border-color:${kpi.color}; color:${kpi.color}"></span>` : '';
+        card.innerHTML = `<h3>${indicator}${kpi.label}</h3><div class="metric">${kpi.value}</div>`;
+        container.appendChild(card);
+      });
+    }
+
+    function renderHoldings(filterText = '', sector = '', sortKey = '') {
+      const tbody = document.querySelector('#holdingsTable tbody');
+      const filtered = state.holdings
+        .filter((h) => h.symbol.includes(filterText) || h.name.includes(filterText))
+        .filter((h) => (!sector ? true : h.sector === sector))
+        .map((h) => ({ ...h, value: h.shares * h.price, pnlPct: (h.price - h.avgCost) / h.avgCost }));
+
+      if (sortKey) {
+        filtered.sort((a, b) => (b[sortKey] || 0) - (a[sortKey] || 0));
+      }
+      tbody.innerHTML = '';
+      filtered.forEach((h) => {
+        const tr = document.createElement('tr');
+        const pnlClass = h.pnlPct >= 0 ? 'positive' : 'negative';
+        tr.innerHTML = `
+          <td>${h.symbol}</td>
+          <td style="text-align:left;">${h.name}</td>
+          <td>${h.shares.toLocaleString()}</td>
+          <td>${h.avgCost.toFixed(2)}</td>
+          <td>${h.price.toFixed(2)}</td>
+          <td>${formatCurrency(h.value)}</td>
+          <td class="${pnlClass}">${formatPct(h.pnlPct)}</td>
+          <td>${formatPct(h.weight)}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function renderSectorFilter() {
+      const select = document.getElementById('sectorFilter');
+      const sectors = Array.from(new Set(state.holdings.map((h) => h.sector)));
+      sectors.forEach((sector) => {
+        const opt = document.createElement('option');
+        opt.value = sector;
+        opt.textContent = sector;
+        select.appendChild(opt);
+      });
+    }
+
+    function renderCharts() {
+      const marketValues = state.holdings.map((h) => h.shares * h.price);
+      const totalMarket = marketValues.reduce((a, b) => a + b, 0);
+      const total = totalMarket + state.cash;
+
+      new Chart(document.getElementById('cashVsStock'), {
+        type: 'doughnut',
+        data: { labels: ['現金', '股票'], datasets: [{ data: [state.cash, totalMarket], backgroundColor: ['#10b981', '#4f46e5'] }] },
+        options: { plugins: { legend: { position: 'bottom' } } },
+      });
+
+      const sectors = {};
+      state.holdings.forEach((h, idx) => {
+        sectors[h.sector] = (sectors[h.sector] || 0) + marketValues[idx];
+      });
+      new Chart(document.getElementById('sectorChart'), {
+        type: 'pie',
+        data: { labels: Object.keys(sectors), datasets: [{ data: Object.values(sectors), backgroundColor: ['#4f46e5', '#f97316', '#10b981', '#6366f1', '#8b5cf6', '#f59e0b'] }] },
+        options: { plugins: { legend: { position: 'bottom' } } },
+      });
+
+      const weightLabels = state.holdings.map((h) => h.symbol);
+      const actual = state.holdings.map((h) => h.weight);
+      const target = state.holdings.map((h) => state.targetWeights[h.sector] ?? 0 / state.holdings.length);
+      new Chart(document.getElementById('weightChart'), {
+        type: 'bar',
+        data: { labels: weightLabels, datasets: [
+          { label: '實際', data: actual, backgroundColor: '#4f46e5' },
+          { label: '目標', data: target, backgroundColor: '#10b981' },
+        ] },
+        options: { scales: { y: { ticks: { callback: (val) => `${val * 100}%` } } } },
+      });
+
+      const deviation = actual.reduce((sum, v, idx) => sum + Math.abs(v - target[idx]), 0);
+      document.getElementById('deviationStats').innerHTML = `
+        <div>總偏離值</div><div>${formatPct(deviation)}</div>
+        <div>最大單檔</div><div>${formatPct(Math.max(...actual))}</div>
+        <div>產業集中度</div><div>${formatPct(Math.max(...Object.values(sectors).map((v) => v / total)))} (含現金)</div>
+        <div>現金比重</div><div>${formatPct(state.cash / total)}</div>`;
+
+      new Chart(document.getElementById('performanceChart'), {
+        type: 'line',
+        data: { labels: ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'], datasets: [{ label: '投組報酬', data: state.performanceSeries, borderColor: '#4f46e5', fill: false }] },
+      });
+
+      new Chart(document.getElementById('drawdownChart'), {
+        type: 'line',
+        data: { labels: ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'], datasets: [{ label: '回撤', data: state.drawdowns, borderColor: '#ef4444', fill: true, backgroundColor: 'rgba(239, 68, 68, 0.1)' }] },
+        options: { scales: { y: { ticks: { callback: (v) => `${v}%` } } } },
+      });
+
+      new Chart(document.getElementById('contributionChart'), {
+        type: 'bar',
+        data: { labels: weightLabels.slice(0, state.contributions.length), datasets: [{ label: '貢獻度', data: state.contributions, backgroundColor: '#10b981' }] },
+      });
+
+      const monthly = {};
+      state.cashFlows.forEach((f) => {
+        const key = f.date.slice(0, 7);
+        monthly[key] = (monthly[key] || 0) + f.amount;
+      });
+      new Chart(document.getElementById('cashTrend'), {
+        type: 'bar',
+        data: { labels: Object.keys(monthly), datasets: [{ label: '淨現金流', data: Object.values(monthly), backgroundColor: '#38bdf8' }] },
+      });
+    }
+
+    function renderRebalance() {
+      const container = document.getElementById('rebalanceList');
+      container.innerHTML = '';
+      state.holdings.forEach((h) => {
+        const target = state.targetWeights[h.sector] || 0;
+        const diff = h.weight - target;
+        if (Math.abs(diff) < 0.01) return;
+        const action = diff > 0 ? '賣出' : '買入';
+        const text = `${h.symbol} (${h.name}) 偏離 ${formatPct(diff)}，建議${action} ${(Math.abs(diff) * 100).toFixed(1)}% 組合權重`;
+        const tag = document.createElement('span');
+        tag.className = 'badge';
+        if (h.weight > 0.1) tag.classList.add('alert-tag');
+        tag.textContent = text;
+        container.appendChild(tag);
+      });
+      if (!container.childElementCount) {
+        container.innerHTML = '<span class="tag">目前組合符合目標配置</span>';
+      }
+    }
+
+    function renderPerformanceStats() {
+      document.getElementById('totalReturn').textContent = `${formatPct(state.returns.total)} TWR`;
+      document.getElementById('irr').textContent = `${formatPct(state.returns.irr)}`;
+      document.getElementById('singlePerf').textContent = `${state.returns.best.symbol} ${formatPct(state.returns.best.pct)} / ${state.returns.worst.symbol} ${formatPct(state.returns.worst.pct)}`;
+    }
+
+    function renderCashFlows() {
+      const tbody = document.getElementById('cashFlowBody');
+      tbody.innerHTML = '';
+      state.cashFlows.forEach((flow) => {
+        const tr = document.createElement('tr');
+        const cls = flow.amount >= 0 ? 'positive' : 'negative';
+        tr.innerHTML = `
+          <td>${flow.account}</td>
+          <td>${flow.type}</td>
+          <td>${flow.date}</td>
+          <td class="${cls}">${formatCurrency(flow.amount)}</td>
+          <td>${flow.note}</td>`;
+        tbody.appendChild(tr);
+      });
+      const usable = state.cash + state.cashFlows.reduce((s, f) => s + f.amount, 0) - 1200; // 假設手續費占位
+      document.getElementById('availableCash').textContent = formatCurrency(usable);
+    }
+
+    function bindControls() {
+      document.getElementById('filterInput').addEventListener('input', (e) => renderHoldings(e.target.value, document.getElementById('sectorFilter').value, currentSort));
+      document.getElementById('sectorFilter').addEventListener('change', (e) => renderHoldings(document.getElementById('filterInput').value, e.target.value, currentSort));
+      document.querySelectorAll('#holdingsTable th').forEach((th) => {
+        th.addEventListener('click', () => {
+          currentSort = th.dataset.key;
+          renderHoldings(document.getElementById('filterInput').value, document.getElementById('sectorFilter').value, currentSort);
+        });
+      });
+      document.getElementById('themeToggle').addEventListener('click', () => {
+        const nextTheme = document.body.dataset.theme === 'light' ? 'dark' : 'light';
+        document.body.dataset.theme = nextTheme;
+      });
+      document.querySelectorAll('[data-layout]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          document.querySelectorAll('[data-layout]').forEach((b) => b.classList.remove('active'));
+          btn.classList.add('active');
+          document.body.style.setProperty('--card', btn.dataset.layout === 'compact' ? 'var(--bg)' : 'var(--card)');
+        });
+      });
+    }
+
+    let currentSort = '';
+    renderTimestamp();
+    renderKPIs();
+    renderSectorFilter();
+    renderHoldings();
+    renderCharts();
+    renderRebalance();
+    renderPerformanceStats();
+    renderCashFlows();
+    bindControls();
+  </script>
+</body>
+</html>
