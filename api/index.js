@@ -23,7 +23,7 @@ app.get('/', (req, res) => {
     res.redirect(config.APP_URL);
     return;
   }
-  res.sendFile(path.join(staticDir, 'dashboard.html'));
+  res.sendFile(path.join(staticDir, 'index.html'));
 });
 
 app.get('/dashboard', (req, res) => {
