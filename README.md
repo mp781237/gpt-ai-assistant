@@ -19,6 +19,12 @@ GPT AI Assistant is an application that is implemented using the OpenAI API and 
 - <a href="https://memochou1993.github.io/gpt-ai-assistant-docs/" target="_blank">中文</a>
 - <a href="https://memochou1993.github.io/gpt-ai-assistant-docs/en" target="_blank">English</a>
 
+## Local preview (dashboard mock pages)
+
+1. 安裝依賴：`npm install`
+2. 啟動伺服器：`npm start`
+3. 瀏覽 `http://localhost:3000`，會看到預覽導航頁，可分別進入 Dashboard 與交易/配息示意頁面。
+
 ## Credits
 
 - [jayer95](https://github.com/jayer95) - Debugging and testing
