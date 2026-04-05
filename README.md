@@ -19,6 +19,22 @@ GPT AI Assistant is an application that is implemented using the OpenAI API and 
 - <a href="https://memochou1993.github.io/gpt-ai-assistant-docs/" target="_blank">中文</a>
 - <a href="https://memochou1993.github.io/gpt-ai-assistant-docs/en" target="_blank">English</a>
 
+
+## Momentum Dashboard
+
+A lightweight dashboard is available at `/dashboard` after starting the server.
+
+Features:
+- Fetch stock prices from Yahoo Finance (`/api/stocks/momentum`).
+- Evaluate absolute momentum, relative momentum (vs benchmark), dual momentum signal, and acceleration momentum (1M - 6M).
+- Take simple notes directly in the dashboard (saved in browser localStorage).
+
+Example API call:
+
+```
+GET /api/stocks/momentum?symbols=SPY,QQQ,AAPL,MSFT&benchmark=SPY
+```
+
 ## Credits
 
 - [jayer95](https://github.com/jayer95) - Debugging and testing

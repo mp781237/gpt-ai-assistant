@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>雙動能 / 加速動能 Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; background: #f6f8fb; color: #1c2430; }
+    h1 { margin-bottom: 8px; }
+    .card { background: white; border-radius: 12px; padding: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 16px; }
+    input, button, textarea { font-size: 14px; padding: 8px; }
+    input { width: 360px; max-width: 100%; }
+    button { cursor: pointer; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border-bottom: 1px solid #e6eaf0; padding: 10px; text-align: right; }
+    th:first-child, td:first-child { text-align: left; }
+    .badge { padding: 2px 8px; border-radius: 999px; color: #fff; font-size: 12px; }
+    .ok { background: #16a34a; }
+    .no { background: #9ca3af; }
+    textarea { width: 100%; min-height: 160px; }
+    .muted { color: #64748b; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <h1>雙動能 / 加速動能投資 Dashboard</h1>
+  <p class="muted">資料來源：Yahoo Finance。此頁僅供研究，不構成投資建議。</p>
+
+  <div class="card">
+    <label>股票清單（逗號分隔）：</label>
+    <div style="margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+      <input id="symbols" value="SPY,QQQ,AAPL,MSFT,NVDA,TLT" />
+      <label>基準：</label>
+      <input id="benchmark" value="SPY" style="width: 120px;" />
+      <button id="loadBtn">更新資料</button>
+    </div>
+    <p id="meta" class="muted"></p>
+  </div>
+
+  <div class="card">
+    <table>
+      <thead>
+        <tr>
+          <th>Symbol</th>
+          <th>收盤價</th>
+          <th>1M%</th>
+          <th>3M%</th>
+          <th>6M%</th>
+          <th>12M%</th>
+          <th>12M相對基準</th>
+          <th>加速動能(1M-6M)</th>
+          <th>雙動能</th>
+        </tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>簡單記事</h3>
+    <textarea id="notes" placeholder="寫下你的觀察、再平衡計畫、進出場條件..."></textarea>
+    <div style="margin-top: 8px;">
+      <button id="saveNotes">儲存記事</button>
+      <span id="notesStatus" class="muted"></span>
+    </div>
+  </div>
+
+  <script>
+    const rowsEl = document.getElementById('rows');
+    const metaEl = document.getElementById('meta');
+    const symbolsEl = document.getElementById('symbols');
+    const benchmarkEl = document.getElementById('benchmark');
+    const loadBtn = document.getElementById('loadBtn');
+    const notesEl = document.getElementById('notes');
+    const saveNotesBtn = document.getElementById('saveNotes');
+    const notesStatusEl = document.getElementById('notesStatus');
+
+    const formatNumber = (value) => (typeof value === 'number' ? value.toFixed(2) : '-');
+
+    const render = (payload) => {
+      rowsEl.innerHTML = payload.data.map((item) => {
+        const dual = item.momentum.dualMomentum;
+        return `
+          <tr>
+            <td>${item.symbol}</td>
+            <td>${formatNumber(item.latestClose)}</td>
+            <td>${formatNumber(item.momentum.r1m)}</td>
+            <td>${formatNumber(item.momentum.r3m)}</td>
+            <td>${formatNumber(item.momentum.r6m)}</td>
+            <td>${formatNumber(item.momentum.r12m)}</td>
+            <td>${formatNumber(item.momentum.relative12mVsBenchmark)}</td>
+            <td>${formatNumber(item.momentum.acceleration)}</td>
+            <td><span class="badge ${dual ? 'ok' : 'no'}">${dual ? '符合' : '不符合'}</span></td>
+          </tr>
+        `;
+      }).join('');
+
+      metaEl.textContent = `基準 ${payload.benchmark.symbol} 12M=${formatNumber(payload.benchmark.momentum.r12m)}%，更新時間：${new Date(payload.generatedAt).toLocaleString()}`;
+    };
+
+    const loadData = async () => {
+      loadBtn.disabled = true;
+      loadBtn.textContent = '載入中...';
+      try {
+        const symbols = encodeURIComponent(symbolsEl.value);
+        const benchmark = encodeURIComponent(benchmarkEl.value);
+        const response = await fetch(`/api/stocks/momentum?symbols=${symbols}&benchmark=${benchmark}`);
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.error || '載入失敗');
+        render(payload);
+      } catch (error) {
+        metaEl.textContent = `錯誤：${error.message}`;
+        rowsEl.innerHTML = '';
+      } finally {
+        loadBtn.disabled = false;
+        loadBtn.textContent = '更新資料';
+      }
+    };
+
+    const NOTES_KEY = 'momentum_dashboard_notes';
+    notesEl.value = localStorage.getItem(NOTES_KEY) || '';
+
+    saveNotesBtn.addEventListener('click', () => {
+      localStorage.setItem(NOTES_KEY, notesEl.value);
+      notesStatusEl.textContent = `已儲存於瀏覽器（${new Date().toLocaleTimeString()}）`;
+    });
+
+    loadBtn.addEventListener('click', loadData);
+    loadData();
+  </script>
+</body>
+</html>

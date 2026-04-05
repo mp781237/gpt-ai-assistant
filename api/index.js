@@ -1,11 +1,17 @@
 import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { handleEvents, printPrompts } from '../app/index.js';
 import config from '../config/index.js';
 import { validateLineSignature } from '../middleware/index.js';
+import { fetchChart } from '../services/yahoo-finance.js';
 import storage from '../storage/index.js';
+import { summarizeMomentum, extractCloses } from '../utils/momentum.js';
 import { fetchVersion, getVersion } from '../utils/index.js';
 
 const app = express();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 app.use(express.json({
   verify: (req, res, buf) => {
@@ -19,6 +25,64 @@ app.get('/', (req, res) => {
     return;
   }
   res.sendStatus(200);
+});
+
+app.get('/dashboard', (req, res) => {
+  const filePath = path.resolve(__dirname, '../demo/momentum-dashboard.html');
+  res.sendFile(filePath);
+});
+
+app.get('/api/stocks/momentum', async (req, res) => {
+  const symbolsParam = (req.query.symbols || '').toString();
+  const benchmark = (req.query.benchmark || 'SPY').toString().trim().toUpperCase();
+  const symbols = symbolsParam
+    .split(',')
+    .map((symbol) => symbol.trim().toUpperCase())
+    .filter(Boolean)
+    .slice(0, 20);
+
+  if (symbols.length === 0) {
+    res.status(400).send({ error: 'symbols is required, e.g. symbols=AAPL,MSFT,QQQ' });
+    return;
+  }
+
+  try {
+    const benchmarkResponse = await fetchChart({ symbol: benchmark, range: '2y' });
+    const benchmarkCloses = extractCloses(benchmarkResponse);
+    const benchmarkSummary = summarizeMomentum({
+      symbol: benchmark,
+      closes: benchmarkCloses,
+      benchmarkR12m: null,
+    });
+
+    const benchmarkR12m = benchmarkSummary.momentum.r12m;
+    const stockResponses = await Promise.all(symbols.map((symbol) => fetchChart({ symbol, range: '2y' })));
+
+    const data = stockResponses
+      .map((response, index) => {
+        const symbol = symbols[index];
+        const closes = extractCloses(response);
+        return summarizeMomentum({
+          symbol,
+          closes,
+          benchmarkR12m,
+        });
+      })
+      .sort((a, b) => (b.momentum.relative12mVsBenchmark || -Infinity)
+        - (a.momentum.relative12mVsBenchmark || -Infinity));
+
+    res.status(200).send({
+      benchmark: benchmarkSummary,
+      symbols,
+      generatedAt: new Date().toISOString(),
+      data,
+    });
+  } catch (err) {
+    res.status(500).send({
+      error: 'Failed to fetch market data',
+      details: err.message,
+    });
+  }
 });
 
 app.get('/info', async (req, res) => {
