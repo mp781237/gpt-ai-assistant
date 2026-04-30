@@ -1,0 +1,17 @@
+{
+  "載板": {
+    "欣興": {"ticker": "3037.TW", "cb": true},
+    "南電": {"ticker": "8046.TW", "cb": true},
+    "景碩": {"ticker": "3189.TW", "cb": true}
+  },
+  "CCL": {
+    "台光電": {"ticker": "2383.TW", "cb": false},
+    "台燿": {"ticker": "6274.TW", "cb": true},
+    "聯茂": {"ticker": "6213.TW", "cb": true}
+  },
+  "PCB": {
+    "金像電": {"ticker": "2368.TW", "cb": true},
+    "華通": {"ticker": "2313.TW", "cb": true},
+    "健鼎": {"ticker": "3044.TW", "cb": false}
+  }
+}
